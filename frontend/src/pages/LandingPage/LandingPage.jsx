@@ -1,6 +1,11 @@
 import FeaturesGrid from '../../components/LandingPage/Features/FeaturesGrid';
+import React, { useState } from 'react';
+import { useSelector } from 'react-redux';
+import SignInModal from '../../components/LandingPage/Auth/SignInModal';
 
 function LandingPage() {
+	const isLoggedIn = useSelector(state => state.auth.isLoggedIn);
+	const [showAuth, setShowAuth] = useState(false);
 	return (
 		<>
 			<section className="relative min-h-screen flex items-center justify-center px-6 text-center pt-32 md:pt-40">
@@ -50,7 +55,17 @@ function LandingPage() {
 									opacity="0.6"
 								/>
 							</svg>
-							<button className="inline-flex items-center gap-2 rounded-full bg-white text-black px-8 py-3.5 font-semibold shadow-[0_8px_30px_rgba(255,255,255,0.25)] hover:shadow-[0_12px_40px_rgba(255,255,255,0.35)] hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white/40 transition-all duration-300">
+							<button
+								onClick={() => {
+									if (!isLoggedIn) {
+										setShowAuth(true);
+									} else {
+										const el = document.getElementById('features');
+										if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+									}
+								}}
+								className="inline-flex items-center gap-2 rounded-full bg-white text-black px-8 py-3.5 font-semibold shadow-[0_8px_30px_rgba(255,255,255,0.25)] hover:shadow-[0_12px_40px_rgba(255,255,255,0.35)] hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white/40 transition-all duration-300"
+							>
 								<span>Get Started</span>
 								<svg
 									xmlns="http://www.w3.org/2000/svg"
@@ -86,6 +101,10 @@ function LandingPage() {
 
 			{/* Features section */}
 			<FeaturesGrid />
+
+			{showAuth && (
+				<SignInModal open={showAuth} onClose={() => setShowAuth(false)} defaultMode={'signin'} />
+			)}
 
 		</>
 	);
