@@ -223,6 +223,7 @@ export default function FeaturesGrid() {
         centeredSlides={false}
         loop={false}
         speed={800}
+        grabCursor={true}
         autoplay={{
           delay: 3000,
           disableOnInteraction: false,

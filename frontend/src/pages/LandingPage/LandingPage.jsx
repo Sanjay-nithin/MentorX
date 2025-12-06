@@ -1,10 +1,12 @@
 import FeaturesGrid from '../../components/LandingPage/Features/FeaturesGrid';
 import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import SignInModal from '../../components/LandingPage/Auth/SignInModal';
 
 function LandingPage() {
 	const isLoggedIn = useSelector(state => state.auth.isLoggedIn);
+	const navigate = useNavigate();
 	const [showAuth, setShowAuth] = useState(false);
 	return (
 		<>
@@ -13,7 +15,7 @@ function LandingPage() {
 				<div className="mx-auto max-w-6xl">
 					{/* Heading with elegant wave accent */}
 					<div className="relative inline-block">
-						<h1 className="text-4xl md:text-7xl lg:text-7xl font-extrabold tracking-tight text-white">
+						<h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-white">
 							Where Learning Becomes Mastery
 						</h1>
 						{/* Black wave accent under the heading */}
@@ -60,8 +62,7 @@ function LandingPage() {
 									if (!isLoggedIn) {
 										setShowAuth(true);
 									} else {
-										const el = document.getElementById('features');
-										if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+										navigate('/dashboard');
 									}
 								}}
 								className="inline-flex items-center gap-2 rounded-full bg-white text-black px-8 py-3.5 font-semibold shadow-[0_8px_30px_rgba(255,255,255,0.25)] hover:shadow-[0_12px_40px_rgba(255,255,255,0.35)] hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white/40 transition-all duration-300"

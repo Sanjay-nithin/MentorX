@@ -4,7 +4,7 @@ from database import db
 from utils.auth import get_password_hash, verify_password, create_access_token, create_refresh_token, verify_refresh_token, verify_access_token
 from models.userModel import RegisterRequest, LoginRequest, UserPublic, AuthResponse, GoogleVerifyRequest, RefreshTokenRequest, UpdateProfileRequest, UpdatePersonalizationRequest
 
-router = APIRouter(prefix='/users', tags=["Users"])
+router = APIRouter(tags=["Users"])
 
 
 @router.post('/register', response_model=AuthResponse, status_code=status.HTTP_201_CREATED)

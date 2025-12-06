@@ -5,6 +5,7 @@ import uvicorn
 from controllers import userController
 from controllers import kgController
 from controllers.quizController import router as quiz_router
+from controllers.resourceController import router as resource_router
 from database import db
 from contextlib import asynccontextmanager
 
@@ -41,9 +42,10 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "X-Requested-With"],
     expose_headers=["Authorization"],
 )
-app.include_router(userController.router)
-app.include_router(kgController.router)
-app.include_router(quiz_router)
+app.include_router(userController.router, prefix="/api/users")
+app.include_router(kgController.router, prefix="/api/kg")
+app.include_router(quiz_router, prefix="/api/quiz")
+app.include_router(resource_router, prefix="/api/resources")
 
 @app.get('/')
 def home():

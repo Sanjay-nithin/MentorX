@@ -1,7 +1,7 @@
 // Lightweight API service for MentorX frontend
 // Uses Vite env var VITE_API_BASE or defaults to localhost
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api';
 
 async function handleResponse(res) {
   let data;
@@ -135,30 +135,30 @@ export async function verifyGoogle(payload) {
 }
 
 // Generate KG-like subtopics list (no descriptions) via backend
-export async function generateKG(topic) {
+export async function generateKG(payload) {
   const res = await fetch(`${API_BASE}/kg/generate`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ topic }),
+    body: JSON.stringify(payload),
   });
   return handleResponse(res);
 }
 
 // Evaluate user's explanation against subtopics
-export async function evaluateExplanation(topic, explanation, reasoningEnabled = true) {
+export async function evaluateExplanation(payload) {
   const res = await fetch(`${API_BASE}/kg/evaluate`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ topic, explanation, reasoning_enabled: !!reasoningEnabled }),
+    body: JSON.stringify(payload),
   });
   const data = await handleResponse(res);
   try {
     // Persist evaluation file path to localStorage (per requirements)
-    const normTopic = (topic || '').trim().toLowerCase();
+    const normTopic = (payload.topic || '').trim().toLowerCase();
     if (data?.file_path) {
       localStorage.setItem('mx_eval_file_path', data.file_path);
       if (normTopic) {
@@ -172,11 +172,11 @@ export async function evaluateExplanation(topic, explanation, reasoningEnabled =
 }
 
 // Quiz APIs
-export async function startQuiz(evalFilePath, userId = null) {
+export async function startQuiz(payload) {
   const res = await fetch(`${API_BASE}/quiz/start`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ eval_file_path: evalFilePath, user_id: userId }),
+    body: JSON.stringify(payload),
   });
   const data = await handleResponse(res);
   try {
@@ -205,11 +205,15 @@ export async function prevQuestion(sessionFilePath) {
   return handleResponse(res);
 }
 
-export async function answerQuestion(sessionFilePath, answerIndex) {
+export async function answerQuestion(sessionFilePath, questionIndex, answerIndex) {
   const res = await fetch(`${API_BASE}/quiz/answer`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ session_file_path: sessionFilePath, answer_index: answerIndex }),
+    body: JSON.stringify({ 
+      session_file_path: sessionFilePath, 
+      question_index: questionIndex,
+      answer_index: answerIndex 
+    }),
   });
   return handleResponse(res);
 }
@@ -220,8 +224,47 @@ export async function finishQuiz(sessionFilePath) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ session_file_path: sessionFilePath }),
   });
-  return handleResponse(res);
+  const data = await handleResponse(res);
+  
+  // Automatically generate PDF notes after quiz completion
+  try {
+    await generatePDFNotes(sessionFilePath, data);
+  } catch (error) {
+    console.warn('Failed to generate PDF notes:', error);
+    // Don't fail the quiz finish if PDF generation fails
+  }
+  
+  return data;
 }
+
+// Generate PDF notes from quiz results
+export async function generatePDFNotes(sessionFilePath, resultsData) {
+  return authenticatedFetch(`${API_BASE}/resources/generate-notes`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      session_file_path: sessionFilePath,
+      results_data: resultsData
+    }),
+  });
+}
+
+// Get all resources for current user
+export async function getMyResources() {
+  return authenticatedFetch(`${API_BASE}/resources/my-resources`, {
+    method: 'GET',
+  });
+}
+
+// Delete a resource
+export async function deleteResource(resourceId) {
+  return authenticatedFetch(`${API_BASE}/resources/${resourceId}`, {
+    method: 'DELETE',
+  });
+}
+
 // Update profile (username, phone, gender, profile_image)
 export async function updateProfile(payload) {
   return authenticatedFetch(`${API_BASE}/users/profile`, {
@@ -258,4 +301,7 @@ export default {
   prevQuestion,
   answerQuestion,
   finishQuiz,
+  generatePDFNotes,
+  getMyResources,
+  deleteResource,
 };

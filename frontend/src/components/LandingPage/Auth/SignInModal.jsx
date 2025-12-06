@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { X, UserPlus, LogIn, ShieldCheck, Mail, Lock, Chrome } from 'lucide-react';
+import { X, UserPlus, LogIn, ShieldCheck, Mail, Lock, Chrome, User } from 'lucide-react';
 import { useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { loginSuccess } from '../../../store/authSlice';
 import { signInWithGoogle } from '../../../firebase';
 import { loginUser, registerUser, setTokens } from '../../../services/service';
 
 export default function SignInModal({ open, onClose, defaultMode = 'signin' }) {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const [mode, setMode] = useState(defaultMode); // 'signin' | 'signup'
   const [loadingForm, setLoadingForm] = useState(false);
   const [loadingGoogle, setLoadingGoogle] = useState(false);
@@ -35,6 +37,7 @@ export default function SignInModal({ open, onClose, defaultMode = 'signin' }) {
         })
       );
       onClose?.();
+      navigate('/dashboard');
     } catch (e) {
       setError(e?.message || 'Google sign-in failed. Please try again.');
     } finally {
@@ -44,7 +47,10 @@ export default function SignInModal({ open, onClose, defaultMode = 'signin' }) {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="relative w-full max-w-2xl bg-white text-black shadow-2xl border border-black/10 rounded-lg" style={{ minHeight: '70vh' }}>
+      <div
+        className={`relative w-full bg-white text-black shadow-2xl border border-black/10 rounded-lg ${mode === 'signup' ? 'max-w-lg' : 'max-w-xl'}`}
+        style={{ minHeight: mode === 'signup' ? '58vh' : '66vh' }}
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-10 py-6 border-b border-black/10">
           <div className="flex items-center gap-2">
@@ -70,8 +76,11 @@ export default function SignInModal({ open, onClose, defaultMode = 'signin' }) {
               const form = e.currentTarget;
               const email = form.querySelector('input[type="email"]').value;
               const password = form.querySelector('input[type="password"]').value;
+              const username = mode === 'signup' ? form.querySelector('input[name="username"]')?.value : null;
               try {
-                const payload = { email, password };
+                const payload = mode === 'signup' 
+                  ? { email, password, username } 
+                  : { email, password };
                 const data = mode === 'signin' ? await loginUser(payload) : await registerUser(payload);
                 // Expecting backend to return { access_token, refresh_token, user }
                 if (data?.access_token && data?.refresh_token) {
@@ -87,6 +96,7 @@ export default function SignInModal({ open, onClose, defaultMode = 'signin' }) {
                   );
                 }
                 onClose?.();
+                navigate('/dashboard');
               } catch (err) {
                 setError(err?.message || 'Authentication failed. Please try again.');
               } finally {
@@ -95,6 +105,22 @@ export default function SignInModal({ open, onClose, defaultMode = 'signin' }) {
             }}
             className="space-y-4"
           >
+            {mode === 'signup' && (
+              <div className="space-y-2">
+                <label className="block text-black font-semibold text-base">Username</label>
+                <div className="flex items-center gap-3 border border-black px-5 py-4 rounded-md">
+                  <User className="h-5 w-5" />
+                  <input
+                    type="text"
+                    name="username"
+                    placeholder="Choose a username"
+                    className="w-full outline-none placeholder:text-gray-500 text-black text-lg"
+                    required
+                    minLength={3}
+                  />
+                </div>
+              </div>
+            )}
             <div className="space-y-2">
               <label className="block text-black font-semibold text-base">Email</label>
               <div className="flex items-center gap-3 border border-black px-5 py-4 rounded-md">
@@ -120,7 +146,11 @@ export default function SignInModal({ open, onClose, defaultMode = 'signin' }) {
               </div>
             </div>
             {/* Primary sign-in button (strong black) */}
-            <button type="submit" className="w-full bg-black text-white px-6 py-4 text-lg font-semibold hover:bg-black/90 rounded-md disabled:opacity-60" disabled={loadingForm || loadingGoogle}>
+            <button
+              type="submit"
+              className={`w-full bg-black text-white ${mode === 'signup' ? 'px-5 py-3 text-base' : 'px-6 py-4 text-lg'} font-semibold hover:bg-black/90 rounded-md disabled:opacity-60`}
+              disabled={loadingForm || loadingGoogle}
+            >
               {loadingForm ? 'Processing...' : (mode === 'signin' ? 'Sign In' : 'Sign Up')}
             </button>
           </form>
