@@ -62,7 +62,7 @@ function LandingPage() {
 									if (!isLoggedIn) {
 										setShowAuth(true);
 									} else {
-										navigate('/dashboard');
+										navigate('/learn');
 									}
 								}}
 								className="inline-flex items-center gap-2 rounded-full bg-white text-black px-8 py-3.5 font-semibold shadow-[0_8px_30px_rgba(255,255,255,0.25)] hover:shadow-[0_12px_40px_rgba(255,255,255,0.35)] hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white/40 transition-all duration-300"

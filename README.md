@@ -280,6 +280,34 @@ Frontend will run at: `http://localhost:5173`
 - `POST /quiz/start` - Start quiz session
 - `POST /quiz/next` - Get next question
 
+### Resources Management
+- `POST /resources/generate-notes` - Generate PDF notes from quiz results (auto-called after quiz finish)
+- `GET /resources/my-resources` - Get all user's resources
+- `DELETE /resources/{resource_id}` - **Delete resource (removes from Cloudinary AND MongoDB)**
+
+#### Delete Resource Details
+When you delete a resource:
+1. **Cloudinary**: PDF file is permanently removed from cloud storage
+2. **MongoDB**: Resource link is removed from user's database document
+3. **Response**: Includes status for both deletions with detailed feedback
+
+Example response:
+```json
+{
+  "success": true,
+  "message": "Resource deleted successfully from both Cloudinary and MongoDB",
+  "deleted_resource_id": "uuid-here",
+  "topic": "Python Variables",
+  "cloudinary_deleted": true,
+  "mongodb_deleted": true,
+  "details": {
+    "cloudinary_public_id": "mentorx/resources/USER_ID/...",
+    "cloudinary_status": "deleted",
+    "mongodb_status": "deleted"
+  }
+}
+```
+
 ---
 
 ## 🔍 Debugging Tips

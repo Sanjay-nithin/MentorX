@@ -1,69 +1,167 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Sidebar from '../../components/Dashboard/Sidebar/Sidebar';
 import { 
-  Sparkles, 
   Send, 
-  Lightbulb, 
   CheckCircle2, 
   XCircle, 
   Loader2,
-  FileText,
   Brain as BrainIcon,
   ArrowRight,
   Award,
   TrendingUp,
   Target,
-  AlertCircle
+  AlertCircle,
+  Bot,
+  User,
+  FileText
 } from 'lucide-react';
-import { generateKG, evaluateExplanation, startQuiz, answerQuestion, finishQuiz } from '../../services/service';
+import { generateKG, evaluateExplanation, startQuiz, answerQuestion, finishQuiz, generatePDFNotes } from '../../services/service';
 
-function Learn() {
+function LearnChatbot() {
+  // Chatbot states
+  const [messages, setMessages] = useState([
+    {
+      id: 1,
+      type: 'bot',
+      content: 'Hi! I\'m your AI Learning Assistant. What topic would you like to learn today?',
+      timestamp: new Date(),
+      isTyping: false,
+      displayedContent: 'Hi! I\'m your AI Learning Assistant. What topic would you like to learn today?'
+    }
+  ]);
+  const [inputValue, setInputValue] = useState('');
+  const [conversationStage, setConversationStage] = useState('awaiting_topic');
   const [topic, setTopic] = useState('');
-  const [explanation, setExplanation] = useState('');
+  const messagesEndRef = useRef(null);
+  const textareaRef = useRef(null);
+  const [typingMessageId, setTypingMessageId] = useState(null);
+  
+  // Quiz states
   const [loading, setLoading] = useState(false);
-  const [loadingStage, setLoadingStage] = useState('');
-  const [evaluationResult, setEvaluationResult] = useState(null);
-  const [error, setError] = useState('');
   const [showQuiz, setShowQuiz] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [quizData, setQuizData] = useState(null);
   const [quizResults, setQuizResults] = useState(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState({});
-  const [questionResults, setQuestionResults] = useState({});  // Store each question's result
-  const [selectedAnswer, setSelectedAnswer] = useState(null);  // Currently selected answer
+  const [questionResults, setQuestionResults] = useState({});
+  const [selectedAnswer, setSelectedAnswer] = useState(null);
+  const [generatingPDF, setGeneratingPDF] = useState(false);
+  const [pdfGenerated, setPdfGenerated] = useState(false);
 
-  const handleEvaluate = async () => {
-    if (!topic.trim() || !explanation.trim()) {
-      setError('Please enter both topic and explanation');
-      return;
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  // Auto-resize textarea
+  const adjustTextareaHeight = () => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = textarea.scrollHeight + 'px';
     }
+  };
 
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [inputValue]);
+
+  const addMessage = (type, content, shouldAnimate = false) => {
+    const newMessage = {
+      id: Date.now(),
+      type,
+      content,
+      timestamp: new Date(),
+      isTyping: shouldAnimate && type === 'bot',
+      displayedContent: shouldAnimate && type === 'bot' ? '' : content
+    };
+    setMessages(prev => [...prev, newMessage]);
+    
+    // Start typing animation for bot messages
+    if (shouldAnimate && type === 'bot') {
+      animateTyping(newMessage.id, content);
+    }
+  };
+
+  const animateTyping = (messageId, fullContent) => {
+    setTypingMessageId(messageId);
+    let currentIndex = 0;
+    const typingSpeed = 10; 
+
+    const typingInterval = setInterval(() => {
+      currentIndex++;
+      
+      setMessages(prev => prev.map(msg => {
+        if (msg.id === messageId) {
+          return {
+            ...msg,
+            displayedContent: fullContent.slice(0, currentIndex),
+            isTyping: currentIndex < fullContent.length
+          };
+        }
+        return msg;
+      }));
+
+      if (currentIndex >= fullContent.length) {
+        clearInterval(typingInterval);
+        setTypingMessageId(null);
+      }
+    }, typingSpeed);
+  };
+
+  const handleSendMessage = async () => {
+    if (!inputValue.trim() || loading) return;
+
+    const userMessage = inputValue.trim();
+    addMessage('user', userMessage);
+    setInputValue('');
+    // Reset textarea height after clearing input
+    setTimeout(() => adjustTextareaHeight(), 0);
     setLoading(true);
-    setLoadingStage('Generating knowledge graph...');
-    setError('');
-    setEvaluationResult(null);
-    setShowQuiz(false);
 
+    try {
+      if (conversationStage === 'awaiting_topic') {
+        // User provided topic
+        setTopic(userMessage);
+        setConversationStage('awaiting_explanation');
+        
+        setTimeout(() => {
+          addMessage('bot', `Great! Let's learn about "${userMessage}". \n\nNow, explain this topic to me in your own words. I want to check whether you have understood it well or not. Take your time and be as detailed as you can!`, true);
+          setLoading(false);
+        }, 1000);
+        
+      } else if (conversationStage === 'awaiting_explanation') {
+        // User provided explanation - start evaluation
+        addMessage('bot', 'Fantastic! Let me evaluate your understanding and prepare a personalized quiz for you...', true);
+        
+        await handleEvaluate(userMessage);
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      addMessage('bot', 'Oops! Something went wrong. Please try again.', true);
+      setLoading(false);
+    }
+  };
+
+  const handleEvaluate = async (explanationText) => {
     try {
       // Step 1: Generate knowledge graph
       const kgResponse = await generateKG({ topic: topic.trim() });
       console.log('KG Response:', kgResponse);
 
       // Step 2: Evaluate explanation
-      setLoadingStage('Evaluating your explanation...');
       const evalResponse = await evaluateExplanation({
         topic: topic.trim(),
-        explanation: explanation.trim(),
+        explanation: explanationText.trim(),
         reasoning_enabled: true
       });
       console.log('Evaluation Response:', evalResponse);
 
-      // Show evaluation result
-      setEvaluationResult(evalResponse);
-      setLoadingStage('Generating personalized quiz...');
-
-      // Step 3: Start quiz and fetch all questions
+      // Step 3: Start quiz
       if (evalResponse && evalResponse.file_path) {
         const quizResponse = await startQuiz({
           eval_file_path: evalResponse.file_path,
@@ -72,7 +170,7 @@ function Learn() {
         console.log('Quiz Session Started:', quizResponse);
 
         if (quizResponse && quizResponse.session_file_path) {
-          // Fetch all quiz questions by calling /next until done
+          // Fetch all quiz questions
           const questions = [];
           let questionIndex = 0;
           
@@ -87,7 +185,7 @@ function Learn() {
               const nextData = await nextQuestion.json();
               
               if (nextData.done) {
-                break; // No more questions
+                break;
               }
               
               if (nextData.question) {
@@ -115,18 +213,25 @@ function Learn() {
               session_file_path: quizResponse.session_file_path,
               attempt_id: quizResponse.attempt_id
             });
-            setShowQuiz(true);
+            
+            // Show success message and transition to quiz
+            setTimeout(() => {
+              addMessage('bot', `Perfect! I've analyzed your understanding and prepared ${questions.length} personalized questions to test your knowledge. Let's begin the quiz!`, true);
+              setTimeout(() => {
+                setShowQuiz(true);
+                setLoading(false);
+              }, 3000); // Increased to allow typing animation to complete
+            }, 1000);
           } else {
-            setError('No quiz questions were generated. Please try again.');
+            addMessage('bot', 'Sorry, I couldn\'t generate quiz questions. Please try again.', true);
+            setLoading(false);
           }
         }
       }
     } catch (err) {
       console.error('Error:', err);
-      setError(err?.message || 'Failed to process. Please try again.');
-    } finally {
+      addMessage('bot', 'Failed to process your explanation. Please try again.');
       setLoading(false);
-      setLoadingStage('');
     }
   };
 
@@ -135,52 +240,47 @@ function Learn() {
   };
 
   const handleConfirmAnswer = async () => {
-    if (selectedAnswer === null) {
-      setError('Please select an answer first');
-      return;
-    }
+    if (selectedAnswer === null) return;
 
     setLoading(true);
-    setLoadingStage('Evaluating your answer...');
-    setError('');
 
     try {
-      // Call /answer endpoint with question_index and answer_index
       const result = await answerQuestion(
         quizData.session_file_path,
         currentQuestionIndex,
         selectedAnswer
       );
 
-      // Store the result for this question
-      setQuestionResults({
-        ...questionResults,
-        [currentQuestionIndex]: result
-      });
+      const currentQuestion = quizData.questions[currentQuestionIndex];
+      const correctAnswerText = currentQuestion.options[result.correct_answer];
+      const userAnswerText = currentQuestion.options[selectedAnswer];
 
-      // Store the answer
-      setUserAnswers({
-        ...userAnswers,
+      setUserAnswers(prev => ({
+        ...prev,
         [currentQuestionIndex]: selectedAnswer
-      });
+      }));
 
-      // Clear selected answer for next question
-      setSelectedAnswer(null);
+      setQuestionResults(prev => ({
+        ...prev,
+        [currentQuestionIndex]: {
+          correct: result.correct,
+          reason: result.reason,
+          user_answer: userAnswerText,
+          correct_answer: correctAnswerText
+        }
+      }));
 
-      console.log('Answer result:', result);
     } catch (err) {
       console.error('Error submitting answer:', err);
-      setError('Failed to submit answer. Please try again.');
     } finally {
       setLoading(false);
-      setLoadingStage('');
     }
   };
 
   const handleNextQuestion = () => {
     if (currentQuestionIndex < quizData.questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setSelectedAnswer(userAnswers[currentQuestionIndex + 1] ?? null);
+      setSelectedAnswer(null);
     }
   };
 
@@ -189,20 +289,6 @@ function Learn() {
       setCurrentQuestionIndex(currentQuestionIndex - 1);
       setSelectedAnswer(userAnswers[currentQuestionIndex - 1] ?? null);
     }
-  };
-
-  const handleBackToLearn = () => {
-    setShowQuiz(false);
-    setShowResults(false);
-    setQuizData(null);
-    setQuizResults(null);
-    setCurrentQuestionIndex(0);
-    setUserAnswers({});
-    setQuestionResults({});
-    setSelectedAnswer(null);
-    setEvaluationResult(null);
-    setTopic('');
-    setExplanation('');
   };
 
   const handleFinishQuiz = async () => {
@@ -214,10 +300,8 @@ function Learn() {
     }
 
     setLoading(true);
-    setLoadingStage('Analyzing performance with GROK AI...');
 
     try {
-      // Get final results with comprehensive GROK analysis
       const results = await finishQuiz(quizData.session_file_path);
       console.log('Quiz Results:', results);
       
@@ -226,17 +310,67 @@ function Learn() {
       setShowResults(true);
     } catch (err) {
       console.error('Error finishing quiz:', err);
-      setError('Failed to submit quiz. Please try again.');
     } finally {
       setLoading(false);
-      setLoadingStage('');
+    }
+  };
+
+  const handleBackToLearn = () => {
+    setMessages([
+      {
+        id: Date.now(),
+        type: 'bot',
+        content: 'Hi! I\'m your AI Learning Assistant. What topic would you like to learn today?',
+        timestamp: new Date(),
+        isTyping: false,
+        displayedContent: 'Hi! I\'m your AI Learning Assistant. What topic would you like to learn today?'
+      }
+    ]);
+    setInputValue('');
+    setConversationStage('awaiting_topic');
+    setTopic('');
+    setShowQuiz(false);
+    setShowResults(false);
+    setQuizData(null);
+    setQuizResults(null);
+    setCurrentQuestionIndex(0);
+    setUserAnswers({});
+    setQuestionResults({});
+    setSelectedAnswer(null);
+    setTypingMessageId(null);
+    setGeneratingPDF(false);
+    setPdfGenerated(false);
+  };
+
+  const handleGeneratePDF = async () => {
+    if (!quizData || !quizResults) {
+      alert('Quiz data not available');
+      return;
+    }
+
+    setGeneratingPDF(true);
+
+    try {
+      await generatePDFNotes(quizData.session_file_path, quizResults);
+      setPdfGenerated(true);
+      alert('✅ PDF Notes Generated Successfully!\n\nYour study notes have been created and saved to your Resources. You can access them from the Resources page.');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('❌ Failed to Generate PDF\n\n' + (error.message || 'An error occurred while generating the PDF. Please try again.'));
+    } finally {
+      setGeneratingPDF(false);
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
     }
   };
 
   // Results View
   if (showResults && quizResults) {
-    const scorePercentage = (quizResults.correct_answers / quizResults.total_questions) * 100;
-
     return (
       <div className="flex min-h-screen bg-black">
         <Sidebar />
@@ -281,6 +415,46 @@ function Learn() {
                 <div className="bg-white/5 border border-white/20 rounded-xl p-4">
                   <p className="text-white">{quizResults.guidance}</p>
                 </div>
+
+                {/* PDF Eligibility Message & Button */}
+                {quizResults.pdf_eligibility && (
+                  <div className={`mt-4 p-4 rounded-xl border ${
+                    quizResults.pdf_eligibility.eligible
+                      ? 'bg-white/5 border-white/30'
+                      : 'bg-white/5 border-white/20'
+                  }`}>
+                    <p className="text-white text-sm mb-3">{quizResults.pdf_eligibility.message}</p>
+                    
+                    {/* Generate PDF Button */}
+                    {quizResults.pdf_eligibility.eligible && !pdfGenerated && (
+                      <button
+                        onClick={handleGeneratePDF}
+                        disabled={generatingPDF}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-white text-black rounded-lg font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                      >
+                        {generatingPDF ? (
+                          <>
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                            Generating PDF...
+                          </>
+                        ) : (
+                          <>
+                            <FileText className="h-5 w-5" />
+                            Generate PDF Notes
+                          </>
+                        )}
+                      </button>
+                    )}
+                    
+                    {/* PDF Generated Success Message */}
+                    {pdfGenerated && (
+                      <div className="flex items-center gap-2 text-white">
+                        <CheckCircle2 className="h-5 w-5 text-white" />
+                        <span className="text-sm font-medium">PDF Notes Generated! Check Resources page.</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Feedback Section */}
@@ -342,7 +516,7 @@ function Learn() {
                         <AlertCircle className="h-4 w-4 text-white" />
                         Hidden Weak Concepts (Detected by AI)
                       </h4>
-                      <p className="text-xs text-gray-500 mb-2">These concepts weren't explicitly tested but GROK detected potential gaps based on your answer patterns.</p>
+                      <p className="text-xs text-gray-500 mb-2">These concepts weren't explicitly tested but AI detected potential gaps.</p>
                       <ul className="space-y-1">
                         {quizResults.learning_profile.hidden_weak_concepts.map((concept, idx) => (
                           <li key={idx} className="text-gray-400 flex items-start gap-2">
@@ -424,11 +598,11 @@ function Learn() {
                 </div>
               )}
 
-              {/* Action Buttons */}
+              {/* Action Button */}
               <div className="flex gap-4">
                 <button
                   onClick={handleBackToLearn}
-                  className="flex-1 py-4 px-6 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-xl font-semibold text-lg transition-all"
+                  className="flex-1 py-4 px-6 bg-white text-black hover:bg-gray-200 rounded-xl font-semibold text-lg transition-all"
                 >
                   Try Another Topic
                 </button>
@@ -440,6 +614,7 @@ function Learn() {
     );
   }
 
+  // Quiz View
   if (showQuiz && quizData) {
     const currentQuestion = quizData.questions[currentQuestionIndex];
     const currentResult = questionResults[currentQuestionIndex];
@@ -453,15 +628,8 @@ function Learn() {
             <div className="max-w-5xl mx-auto">
               {/* Quiz Header */}
               <div className="mb-6">
-                <button
-                  onClick={handleBackToLearn}
-                  className="mb-4 px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors flex items-center gap-2"
-                >
-                  <ArrowRight className="h-4 w-4 rotate-180" />
-                  Back to Learn
-                </button>
                 <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
-                  <BrainIcon className="h-8 w-8 text-purple-400" />
+                  <BrainIcon className="h-8 w-8 text-white" />
                   Quiz: {topic}
                 </h1>
                 <p className="text-gray-400">
@@ -469,8 +637,8 @@ function Learn() {
                 </p>
               </div>
 
-              {/* Progress indicator - Simple text display */}
-              <div className="mb-6 bg-gradient-to-br from-gray-900 to-black border border-white/10 rounded-xl p-4">
+              {/* Progress */}
+              <div className="mb-6 bg-black border border-white/20 rounded-xl p-4">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-400">
                     Answered: {Object.keys(userAnswers).length} / {quizData.questions.length}
@@ -482,16 +650,11 @@ function Learn() {
               </div>
 
               {/* Question Card */}
-              <div className="bg-gradient-to-br from-gray-900 to-black border border-white/10 rounded-2xl p-8 mb-6">
+              <div className="bg-black border border-white/20 rounded-2xl p-8 mb-6">
                 <div className="mb-6">
-                  <div className="flex items-start gap-3 mb-4">
-                    <div className="p-2 bg-purple-500/20 rounded-lg">
-                      <Lightbulb className="h-5 w-5 text-purple-400" />
-                    </div>
-                    <h2 className="text-xl font-semibold text-white flex-1">
-                      {currentQuestion.question}
-                    </h2>
-                  </div>
+                  <h2 className="text-xl font-semibold text-white mb-4">
+                    {currentQuestion.question}
+                  </h2>
                 </div>
 
                 {/* Options */}
@@ -506,7 +669,7 @@ function Learn() {
                         ${hasAnswered ? 'cursor-not-allowed opacity-60' : ''}
                         ${
                           selectedAnswer === index
-                            ? 'border-purple-500 bg-purple-500/10'
+                            ? 'border-white bg-white/10'
                             : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10'
                         }
                       `}
@@ -514,10 +677,10 @@ function Learn() {
                       <div className="flex items-center gap-3">
                         <div className={`
                           w-6 h-6 rounded-full border-2 flex items-center justify-center
-                          ${selectedAnswer === index ? 'border-purple-500 bg-purple-500' : 'border-gray-500'}
+                          ${selectedAnswer === index ? 'border-white bg-white' : 'border-gray-500'}
                         `}>
                           {selectedAnswer === index && (
-                            <CheckCircle2 className="h-4 w-4 text-white" />
+                            <CheckCircle2 className="h-4 w-4 text-black" />
                           )}
                         </div>
                         <span className="text-white">{option}</span>
@@ -526,28 +689,28 @@ function Learn() {
                   ))}
                 </div>
 
-                {/* Reasoning Display (if answered) */}
+                {/* Reasoning Display */}
                 {currentResult && (
                   <div className={`mt-6 p-4 rounded-xl border-2 ${
                     currentResult.correct 
-                      ? 'bg-green-500/10 border-green-500/50' 
-                      : 'bg-red-500/10 border-red-500/50'
+                      ? 'bg-white/5 border-white/30' 
+                      : 'bg-white/5 border-white/20'
                   }`}>
                     <div className="flex items-start gap-3 mb-2">
                       {currentResult.correct ? (
-                        <CheckCircle2 className="h-6 w-6 text-green-400 flex-shrink-0" />
+                        <CheckCircle2 className="h-6 w-6 text-white flex-shrink-0" />
                       ) : (
-                        <XCircle className="h-6 w-6 text-red-400 flex-shrink-0" />
+                        <XCircle className="h-6 w-6 text-white flex-shrink-0" />
                       )}
                       <div className="flex-1">
-                        <h3 className={`font-semibold mb-1 ${currentResult.correct ? 'text-green-400' : 'text-red-400'}`}>
+                        <h3 className="text-white font-semibold mb-1">
                           {currentResult.correct ? 'Correct!' : 'Incorrect'}
                         </h3>
-                        <p className="text-sm text-gray-300 mb-2">{currentResult.reason}</p>
+                        <p className="text-sm text-gray-400 mb-2">{currentResult.reason}</p>
                         {!currentResult.correct && (
                           <div className="text-sm mt-2 pt-2 border-t border-white/10">
-                            <p className="text-gray-400">Your answer: <span className="text-red-400">{currentResult.user_answer}</span></p>
-                            <p className="text-gray-400">Correct answer: <span className="text-green-400">{currentResult.correct_answer}</span></p>
+                            <p className="text-gray-400">Your answer: <span className="text-white">{currentResult.user_answer}</span></p>
+                            <p className="text-gray-400">Correct answer: <span className="text-white">{currentResult.correct_answer}</span></p>
                           </div>
                         )}
                       </div>
@@ -571,7 +734,7 @@ function Learn() {
                     <button
                       onClick={handleConfirmAnswer}
                       disabled={selectedAnswer === null || loading}
-                      className="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-blue-600 text-white hover:from-purple-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold flex items-center gap-2"
+                      className="px-6 py-3 rounded-xl bg-white text-black hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold flex items-center gap-2"
                     >
                       {loading ? (
                         <>
@@ -590,7 +753,7 @@ function Learn() {
                   {hasAnswered && currentQuestionIndex < quizData.questions.length - 1 && (
                     <button
                       onClick={handleNextQuestion}
-                      className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 transition-all flex items-center gap-2"
+                      className="px-6 py-3 rounded-xl bg-white text-black hover:bg-gray-200 transition-all flex items-center gap-2 font-semibold"
                     >
                       Next Question
                       <ArrowRight className="h-5 w-5" />
@@ -625,114 +788,102 @@ function Learn() {
     );
   }
 
+  // Chatbot View (Default)
   return (
     <div className="flex min-h-screen bg-black">
       <Sidebar />
       <div className="flex-1 lg:ml-64">
-        <div className="text-white pt-24 lg:pt-12 pb-12 px-6">
-          <div className="max-w-4xl mx-auto">
+        <div className="min-h-screen flex flex-col pt-24 lg:pt-12 pb-6 px-6">
+          <div className="max-w-4xl mx-auto w-full flex flex-col flex-1">
             {/* Header */}
             <div className="mb-8">
-              <h1 className="text-4xl md:text-5xl font-bold mb-4 flex items-center gap-3">
-                <Sparkles className="h-10 w-10 text-white" />
-                Learn & Practice
+              <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
+                <Bot className="h-8 w-8 text-white" />
+                AI Learning Assistant
               </h1>
-              <p className="text-xl text-gray-400">
-                Explain what you've learned and get instant feedback with AI-powered evaluation
+              <p className="text-gray-400">
+                Chat with AI to learn and test your knowledge
               </p>
             </div>
 
-            {/* Main Card */}
-            <div className="bg-black border border-white/20 rounded-2xl p-8">
-              {/* Topic Input */}
-              <div className="mb-6">
-                <label className="flex items-center gap-2 text-lg font-semibold mb-3">
-                  <FileText className="h-5 w-5 text-white" />
-                  Topic
-                </label>
-                <input
-                  type="text"
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
-                  placeholder="e.g., Python Variables, React Hooks, Machine Learning..."
-                  className="w-full px-6 py-4 bg-black border border-white/20 rounded-xl text-white placeholder:text-gray-500 focus:outline-none focus:border-white focus:ring-2 focus:ring-white/20 transition-all"
-                />
-              </div>
-
-              {/* Explanation Input */}
-              <div className="mb-6">
-                <label className="flex items-center gap-2 text-lg font-semibold mb-3">
-                  <Lightbulb className="h-5 w-5 text-white" />
-                  Your Explanation
-                </label>
-                <textarea
-                  value={explanation}
-                  onChange={(e) => setExplanation(e.target.value)}
-                  placeholder="Explain the concept in your own words... Be detailed and clear."
-                  rows={8}
-                  className="w-full px-6 py-4 bg-black border border-white/20 rounded-xl text-white placeholder:text-gray-500 focus:outline-none focus:border-white focus:ring-2 focus:ring-white/20 transition-all resize-none"
-                />
-              </div>
-
-              {/* Error Message */}
-              {error && (
-                <div className="mb-6 p-4 bg-black border border-white/30 rounded-xl flex items-center gap-3">
-                  <XCircle className="h-5 w-5 text-white flex-shrink-0" />
-                  <p className="text-white">{error}</p>
-                </div>
-              )}
-
-              {/* Evaluation Result */}
-              {evaluationResult && !loading && !showQuiz && (
-                <div className="mb-6 p-6 bg-white/5 border border-white/20 rounded-xl">
-                  <div className="flex items-start gap-3 mb-4">
-                    <CheckCircle2 className="h-6 w-6 text-white flex-shrink-0 mt-1" />
+            {/* Chat Messages - No Container */}
+            <div className="flex-1 mb-6 overflow-y-auto max-h-[calc(100vh-300px)]">
+              <div className="space-y-8">
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex gap-4 items-start ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    {message.type === 'bot' && (
+                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-white flex items-center justify-center">
+                        <Bot className="h-6 w-6 text-black" />
+                      </div>
+                    )}
+                    <div className={`flex-1 ${message.type === 'user' ? 'text-right' : 'text-left'}`}>
+                      <p className={`text-lg whitespace-pre-wrap leading-relaxed ${
+                        message.type === 'user' ? 'text-white' : 'text-gray-200'
+                      }`}>
+                        {message.displayedContent || message.content}
+                        {message.isTyping && <span className="inline-block w-1 h-5 bg-gray-400 ml-1 animate-pulse"></span>}
+                      </p>
+                      <span className={`text-xs text-gray-500 mt-2 inline-block ${
+                        message.type === 'user' ? 'text-right' : 'text-left'
+                      }`}>
+                        {message.timestamp.toLocaleTimeString()}
+                      </span>
+                    </div>
+                    {message.type === 'user' && (
+                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-white text-black flex items-center justify-center font-bold">
+                        <User className="h-6 w-6" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {loading && (
+                  <div className="flex gap-4 items-start justify-start">
+                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-white flex items-center justify-center">
+                      <Bot className="h-6 w-6 text-black" />
+                    </div>
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-white mb-2">Evaluation Complete!</h3>
-                      <p className="text-gray-400 mb-3">{evaluationResult.summary || 'Your explanation has been evaluated successfully.'}</p>
-                      {evaluationResult.content && (
-                        <div className="space-y-2 text-sm">
-                          {evaluationResult.content.average_subtopic_score && (
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-400">Content Score:</span>
-                              <span className="text-white font-semibold">{evaluationResult.content.average_subtopic_score.toFixed(1)}/5</span>
-                            </div>
-                          )}
-                          {evaluationResult.content.grammar_score && (
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-400">Grammar Score:</span>
-                              <span className="text-white font-semibold">{evaluationResult.content.grammar_score}/5</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                        <span className="text-gray-400 text-sm">Thinking...</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-
-              {/* Evaluate Button */}
-              <button
-                onClick={handleEvaluate}
-                disabled={loading}
-                className="w-full py-4 px-6 bg-white rounded-xl font-semibold text-lg flex items-center justify-center gap-3 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                    {loadingStage || 'Processing...'}
-                  </>
-                ) : (
-                  <>
-                    <Send className="h-6 w-6" />
-                    Evaluate & Generate Quiz
-                  </>
                 )}
-              </button>
+                <div ref={messagesEndRef} />
+              </div>
+            </div>
 
-              {/* Info Text */}
-              <p className="mt-4 text-sm text-gray-500 text-center">
-                Your explanation will be evaluated and a personalized quiz will be generated based on your understanding
+            {/* Input Area */}
+            <div className="bg-white/5 border border-white/20 rounded-2xl p-4 backdrop-blur-sm">
+              <div className="flex gap-3 items-end">
+                <textarea
+                  ref={textareaRef}
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder={
+                    conversationStage === 'awaiting_topic'
+                      ? 'Type a topic (e.g., Python Variables, React Hooks)...'
+                      : 'Explain the topic in your own words...'
+                  }
+                  rows={1}
+                  disabled={loading}
+                  className="flex-1 bg-white/5 border border-white/20 rounded-xl px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:border-white focus:ring-2 focus:ring-white/20 transition-all disabled:opacity-50 min-h-[44px] overflow-hidden"
+                />
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!inputValue.trim() || loading}
+                  className="px-6 py-3 bg-white text-black rounded-xl hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 font-semibold"
+                >
+                  <Send className="h-5 w-5" />
+                  Send
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Press Enter to send, Shift+Enter for new line
               </p>
             </div>
           </div>
@@ -742,4 +893,4 @@ function Learn() {
   );
 }
 
-export default Learn;
+export default LearnChatbot;

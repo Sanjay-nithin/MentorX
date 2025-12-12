@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { logout } from '../../../store/authSlice';
 import { 
-  LayoutDashboard, 
   GraduationCap, 
   BookOpenText, 
   ClipboardCheck, 
@@ -21,9 +20,7 @@ function Sidebar() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: BookOpenText, label: 'Learn', path: '/learn' },
-    { icon: ClipboardCheck, label: 'Quizzes', path: '/quizzes' },
     { icon: FileText, label: 'Resources', path: '/resources' },
     { icon: BookOpenText, label: 'Test Learn', path: '/test-learn' },
     { icon: User, label: 'Profile', path: '/profile' },
@@ -43,7 +40,7 @@ function Sidebar() {
     <>
       {/* Mobile hamburger button */}
       <button
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-colors"
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-black border border-white/30 hover:border-white/50 transition-all duration-200"
         onClick={() => setIsMobileOpen(!isMobileOpen)}
         aria-label="Toggle menu"
       >
@@ -53,7 +50,7 @@ function Sidebar() {
       {/* Backdrop for mobile */}
       {isMobileOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+          className="lg:hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-40 transition-opacity duration-300"
           onClick={() => setIsMobileOpen(false)}
         />
       )}
@@ -61,7 +58,7 @@ function Sidebar() {
       {/* Sidebar */}
       <aside
         className={`
-          fixed top-0 left-0 h-full w-64 bg-black border-r border-white/10 z-40
+          fixed top-0 left-0 h-full w-64 bg-black border-r border-white/20 z-40
           transition-transform duration-300 ease-in-out
           ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}
           lg:translate-x-0
@@ -69,11 +66,9 @@ function Sidebar() {
       >
         <div className="flex flex-col h-full">
           {/* Logo/Brand */}
-          <div className="p-6 border-b border-white/10">
+          <div className="p-6 border-b border-white/20">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600">
-                <GraduationCap className="h-6 w-6 text-white" />
-              </div>
+              <GraduationCap className="h-8 w-8 text-white" />
               <div>
                 <h2 className="text-xl font-bold text-white">MentorX</h2>
                 <p className="text-xs text-gray-400">AI Learning Platform</p>
@@ -96,8 +91,8 @@ function Sidebar() {
                     transition-all duration-200
                     ${
                       isActive
-                        ? 'bg-gradient-to-r from-blue-500/20 to-purple-600/20 border border-blue-500/30 text-white'
-                        : 'text-gray-400 hover:text-white hover:bg-white/5'
+                        ? 'bg-white/10 border border-white/30 text-white'
+                        : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
                     }
                   `}
                 >
@@ -109,10 +104,10 @@ function Sidebar() {
           </nav>
 
           {/* Logout button */}
-          <div className="p-4 border-t border-white/10">
+          <div className="p-4 border-t border-white/20">
             <button
               onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-all duration-200 border border-transparent hover:border-white/20"
             >
               <LogOut className="h-5 w-5" />
               <span className="font-medium">Logout</span>

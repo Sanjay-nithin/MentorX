@@ -57,12 +57,12 @@ def generate_quiz_notes_pdf(quiz_data: dict, results_data: dict) -> BytesIO:
     story = []
     styles = getSampleStyleSheet()
     
-    # Custom styles
+    # Custom styles with white background and black text
     title_style = ParagraphStyle(
         'CustomTitle',
         parent=styles['Heading1'],
         fontSize=24,
-        textColor=colors.HexColor('#1e40af'),
+        textColor=colors.black,
         spaceAfter=30,
         alignment=TA_CENTER,
         fontName='Helvetica-Bold'
@@ -72,7 +72,7 @@ def generate_quiz_notes_pdf(quiz_data: dict, results_data: dict) -> BytesIO:
         'CustomHeading',
         parent=styles['Heading2'],
         fontSize=16,
-        textColor=colors.HexColor('#2563eb'),
+        textColor=colors.black,
         spaceAfter=12,
         spaceBefore=20,
         fontName='Helvetica-Bold'
@@ -82,7 +82,7 @@ def generate_quiz_notes_pdf(quiz_data: dict, results_data: dict) -> BytesIO:
         'CustomSubHeading',
         parent=styles['Heading3'],
         fontSize=14,
-        textColor=colors.HexColor('#3b82f6'),
+        textColor=colors.black,
         spaceAfter=10,
         spaceBefore=15,
         fontName='Helvetica-Bold'
@@ -94,19 +94,34 @@ def generate_quiz_notes_pdf(quiz_data: dict, results_data: dict) -> BytesIO:
         fontSize=11,
         leading=16,
         alignment=TA_JUSTIFY,
-        spaceAfter=10
+        spaceAfter=10,
+        textColor=colors.black
     )
     
-    # Add MentorX Logo (if exists)
-    logo_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'mentorx_logo.png')
-    if os.path.exists(logo_path):
-        try:
-            logo = Image(logo_path, width=2*inch, height=0.6*inch)
-            logo.hAlign = 'CENTER'
-            story.append(logo)
-            story.append(Spacer(1, 0.2*inch))
-        except Exception as e:
-            print(f"Could not load logo: {e}")
+    # Add MentorX Logo/Header
+    logo_style = ParagraphStyle(
+        'LogoStyle',
+        parent=styles['Normal'],
+        fontSize=28,
+        textColor=colors.black,
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold',
+        spaceAfter=5
+    )
+    
+    tagline_style = ParagraphStyle(
+        'TaglineStyle',
+        parent=styles['Normal'],
+        fontSize=10,
+        textColor=colors.HexColor('#666666'),
+        alignment=TA_CENTER,
+        spaceAfter=20
+    )
+    
+    # Use text-based logo with graduation cap symbol
+    story.append(Paragraph("🎓 MentorX", logo_style))
+    story.append(Paragraph("AI Learning Platform", tagline_style))
+    story.append(Spacer(1, 0.2*inch))
     
     # Title Page
     topic = quiz_data.get('topic', 'Quiz Results')
@@ -140,17 +155,18 @@ def generate_quiz_notes_pdf(quiz_data: dict, results_data: dict) -> BytesIO:
     
     summary_table = Table(summary_data, colWidths=[3*inch, 2*inch])
     summary_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3b82f6')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.black),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, 0), 12),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
         ('FONTSIZE', (0, 1), (-1, -1), 10),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey])
+        ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')])
     ]))
     
     story.append(summary_table)
@@ -211,11 +227,117 @@ def generate_quiz_notes_pdf(quiz_data: dict, results_data: dict) -> BytesIO:
         if next_topic.get('reason'):
             story.append(Paragraph(next_topic['reason'], normal_style))
     
+    story.append(Spacer(1, 0.3*inch))
+    
+    # Get mistakes data early for use in multiple sections
+    mistakes = results_data.get('mistakes_detail', [])
+    
+    # Study Guide & Improvement Tips Section
+    story.append(Paragraph("Study Guide & Improvement Tips", heading_style))
+    
+    # Introduction to study guide
+    story.append(Paragraph(
+        "Based on your quiz performance, here are detailed study notes and actionable tips to help you improve:",
+        normal_style
+    ))
+    story.append(Spacer(1, 0.15*inch))
+    
+    # Areas for Improvement with Examples
+    if learning_profile.get('weaknesses') or learning_profile.get('focus_areas'):
+        story.append(Paragraph("📚 Areas Requiring Focused Study", subheading_style))
+        
+        focus_items = learning_profile.get('focus_areas', []) or learning_profile.get('weaknesses', [])
+        
+        for idx, area in enumerate(focus_items, 1):
+            # Area title
+            story.append(Paragraph(f"<b>{idx}. {area}</b>", normal_style))
+            
+            # Add practical tips based on common patterns
+            story.append(Paragraph("<b>Study Tips:</b>", ParagraphStyle(
+                'TipsStyle',
+                parent=normal_style,
+                fontSize=10,
+                textColor=colors.HexColor('#333333'),
+                leftIndent=20
+            )))
+            
+            # Generic but helpful study tips
+            tips = [
+                "Review fundamental concepts and definitions thoroughly",
+                "Practice with hands-on exercises and real-world examples",
+                "Create mind maps or concept diagrams to visualize relationships",
+                "Teach the concept to someone else to reinforce understanding",
+                "Use spaced repetition to memorize key points effectively"
+            ]
+            
+            for tip in tips[:3]:  # Show 3 tips per area
+                story.append(Paragraph(
+                    f"  • {tip}",
+                    ParagraphStyle('TipItem', parent=normal_style, fontSize=10, leftIndent=25, spaceAfter=5)
+                ))
+            
+            story.append(Spacer(1, 0.1*inch))
+    
+    # Key Concepts to Master
+    if mistakes:
+        story.append(Paragraph("🎯 Key Concepts to Master", subheading_style))
+        story.append(Paragraph(
+            "Based on your mistakes, focus on understanding these concepts:",
+            normal_style
+        ))
+        story.append(Spacer(1, 0.1*inch))
+        
+        # Extract unique concepts from mistakes
+        concepts_to_review = []
+        for mistake in mistakes[:5]:  # Top 5 mistakes
+            question = mistake.get('question', '')
+            if question and len(question) > 20:
+                # Extract key concept hint from question
+                concept_hint = question[:80] + "..." if len(question) > 80 else question
+                concepts_to_review.append(concept_hint)
+        
+        for idx, concept in enumerate(concepts_to_review, 1):
+            story.append(Paragraph(
+                f"{idx}. {concept}",
+                ParagraphStyle('ConceptItem', parent=normal_style, fontSize=10, leftIndent=15, spaceAfter=5)
+            ))
+        
+        story.append(Spacer(1, 0.15*inch))
+    
+    # Practice Recommendations
+    story.append(Paragraph("💡 Practice Recommendations", subheading_style))
+    practice_recommendations = [
+        "<b>Daily Review:</b> Spend 15-20 minutes daily reviewing concepts you found challenging",
+        "<b>Active Recall:</b> Test yourself without looking at notes to strengthen memory",
+        "<b>Elaboration:</b> Connect new concepts to what you already know",
+        "<b>Diverse Practice:</b> Solve problems from different angles and contexts",
+        "<b>Mistakes Journal:</b> Keep a record of mistakes and review them weekly"
+    ]
+    
+    for recommendation in practice_recommendations:
+        story.append(Paragraph(f"• {recommendation}", normal_style))
+    
+    story.append(Spacer(1, 0.2*inch))
+    
+    # Additional Resources Suggestions
+    story.append(Paragraph("📖 Recommended Study Approach", subheading_style))
+    study_approach = [
+        "Start with the basics and ensure you understand foundational concepts",
+        "Progress gradually to more complex topics",
+        "Practice regularly with increasing difficulty levels",
+        "Review your mistakes and understand why answers were incorrect",
+        "Apply concepts through real-world projects and examples"
+    ]
+    
+    for step in study_approach:
+        story.append(Paragraph(f"• {step}", normal_style))
+    
+    story.append(Spacer(1, 0.3*inch))
+    
     # Page Break before mistakes
     story.append(PageBreak())
     
-    # Mistakes Detail
-    mistakes = results_data.get('mistakes_detail', [])
+    # Mistakes Detail (mistakes already defined earlier)
     if mistakes:
         story.append(Paragraph("Detailed Mistake Analysis", heading_style))
         story.append(Paragraph(
@@ -238,16 +360,13 @@ def generate_quiz_notes_pdf(quiz_data: dict, results_data: dict) -> BytesIO:
             
             answer_table = Table(answer_data, colWidths=[1.5*inch, 4.5*inch])
             answer_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#fee2e2')),
-                ('BACKGROUND', (1, 0), (1, 0), colors.HexColor('#fecaca')),
-                ('BACKGROUND', (1, 1), (1, 1), colors.HexColor('#bbf7d0')),
-                ('TEXTCOLOR', (0, 0), (0, 0), colors.HexColor('#991b1b')),
-                ('TEXTCOLOR', (1, 0), (1, 0), colors.HexColor('#991b1b')),
-                ('TEXTCOLOR', (0, 1), (0, 1), colors.HexColor('#166534')),
-                ('TEXTCOLOR', (1, 1), (1, 1), colors.HexColor('#166534')),
+                ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f5f5f5')),
+                ('BACKGROUND', (1, 0), (1, 0), colors.white),
+                ('BACKGROUND', (1, 1), (1, 1), colors.white),
+                ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
                 ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
                 ('FONTSIZE', (0, 0), (-1, -1), 10),
-                ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
                 ('VALIGN', (0, 0), (-1, -1), 'TOP'),
                 ('LEFTPADDING', (0, 0), (-1, -1), 6),
                 ('RIGHTPADDING', (0, 0), (-1, -1), 6),
@@ -268,11 +387,11 @@ def generate_quiz_notes_pdf(quiz_data: dict, results_data: dict) -> BytesIO:
     story.append(Spacer(1, 0.3*inch))
     story.append(Paragraph(
         "Generated by MentorX AI Learning Platform",
-        ParagraphStyle('Footer', parent=styles['Normal'], fontSize=9, textColor=colors.grey, alignment=TA_CENTER)
+        ParagraphStyle('Footer', parent=styles['Normal'], fontSize=9, textColor=colors.HexColor('#666666'), alignment=TA_CENTER)
     ))
     story.append(Paragraph(
         f"Report Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-        ParagraphStyle('Footer2', parent=styles['Normal'], fontSize=9, textColor=colors.grey, alignment=TA_CENTER)
+        ParagraphStyle('Footer2', parent=styles['Normal'], fontSize=9, textColor=colors.HexColor('#666666'), alignment=TA_CENTER)
     ))
     
     # Build PDF
@@ -427,6 +546,36 @@ async def generate_quiz_notes(
     # Read quiz session data
     quiz_data = _read_json(session_file_path)
     topic = quiz_data.get('topic', 'Quiz Results')
+    final_score_10 = results_data.get('final_score_10', 0)
+    
+    # DEBUG: Score requirement temporarily disabled for debugging
+    # Check if score meets minimum requirement (>= 8.0)
+    # if final_score_10 < 8.0:
+    #     raise HTTPException(
+    #         status_code=400,
+    #         detail=f"Score requirement not met. Your score is {final_score_10:.1f}/10. To generate PDF notes, you need a minimum score of 8.0/10."
+    #     )
+    
+    # Check if user already has a resource for this topic
+    try:
+        users_collection = db["users"]
+        user_doc = await users_collection.find_one({"_id": ObjectId(user_id)})
+        
+        if user_doc and 'resources' in user_doc:
+            existing_resources = user_doc['resources']
+            # Check if topic already exists (case-insensitive)
+            topic_lower = topic.lower().strip()
+            for resource in existing_resources:
+                if resource.get('topic', '').lower().strip() == topic_lower:
+                    raise HTTPException(
+                        status_code=409,
+                        detail=f"You already have PDF notes for the topic '{topic}'. Please delete the existing resource first if you want to generate new notes."
+                    )
+    except HTTPException:
+        raise  # Re-raise HTTPException
+    except Exception as e:
+        print(f"Error checking existing resources: {str(e)}")
+        # Continue with generation if check fails (non-critical)
     
     try:
         # Generate PDF
@@ -596,17 +745,24 @@ async def delete_resource(
                 detail="Resource not found"
             )
         
-        # Delete from Cloudinary
+        # Step 1: Delete from Cloudinary
         cloudinary_public_id = resource_to_delete.get('metadata', {}).get('cloudinary_public_id')
+        cloudinary_deleted = False
+        cloudinary_error = None
+        
         if cloudinary_public_id:
             try:
-                cloudinary.uploader.destroy(cloudinary_public_id, resource_type="raw")
-                print(f"Deleted from Cloudinary: {cloudinary_public_id}")
+                result = cloudinary.uploader.destroy(cloudinary_public_id, resource_type="raw")
+                cloudinary_deleted = result.get('result') == 'ok'
+                print(f"✓ Deleted from Cloudinary: {cloudinary_public_id} - Result: {result}")
             except Exception as e:
-                print(f"Failed to delete from Cloudinary: {e}")
+                cloudinary_error = str(e)
+                print(f"✗ Failed to delete from Cloudinary: {e}")
                 # Continue with DB deletion even if Cloudinary fails
+        else:
+            print(f"⚠ No Cloudinary public_id found in metadata, skipping cloud deletion")
         
-        # Remove from MongoDB
+        # Step 2: Remove from MongoDB
         result = await users_collection.update_one(
             {"_id": ObjectId(user_id)},
             {
@@ -622,9 +778,21 @@ async def delete_resource(
                 detail="Failed to delete resource from database"
             )
         
+        print(f"✓ Removed resource {resource_id} from MongoDB for user {user_id}")
+        
         return {
             "success": True,
-            "message": "Resource deleted successfully"
+            "message": "Resource deleted successfully from both Cloudinary and MongoDB",
+            "deleted_resource_id": resource_id,
+            "topic": resource_to_delete.get('topic'),
+            "cloudinary_deleted": cloudinary_deleted,
+            "mongodb_deleted": True,
+            "details": {
+                "cloudinary_public_id": cloudinary_public_id,
+                "cloudinary_status": "deleted" if cloudinary_deleted else ("not_found" if not cloudinary_public_id else "error"),
+                "cloudinary_error": cloudinary_error,
+                "mongodb_status": "deleted"
+            }
         }
         
     except HTTPException:

@@ -219,16 +219,17 @@ export async function answerQuestion(sessionFilePath, questionIndex, answerIndex
 }
 
 export async function finishQuiz(sessionFilePath) {
-  const res = await fetch(`${API_BASE}/quiz/finish`, {
+  const data = await authenticatedFetch(`${API_BASE}/quiz/finish`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ session_file_path: sessionFilePath }),
   });
-  const data = await handleResponse(res);
   
-  // Automatically generate PDF notes after quiz completion
+  // DEBUG: Automatically generate PDF notes after quiz completion (score check disabled)
+  // Always attempt PDF generation for debugging purposes
   try {
     await generatePDFNotes(sessionFilePath, data);
+    console.log('PDF notes generated successfully');
   } catch (error) {
     console.warn('Failed to generate PDF notes:', error);
     // Don't fail the quiz finish if PDF generation fails

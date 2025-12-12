@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Sidebar from '../../components/Dashboard/Sidebar/Sidebar';
 import { getMyResources, deleteResource } from '../../services/service';
 import { FileText, Download, Trash2, Eye, Calendar, FileDown, AlertCircle } from 'lucide-react';
 
@@ -26,19 +27,48 @@ export default function Resources() {
     }
   };
 
-  const handleDelete = async (resourceId) => {
-    if (!confirm('Are you sure you want to delete this resource? This action cannot be undone.')) {
+  const handleDelete = async (resourceId, topic) => {
+    // Show detailed confirmation dialog
+    const confirmed = confirm(
+      `⚠️ Delete "${topic}"?\n\n` +
+      `This will permanently remove:\n` +
+      `✓ PDF file from Cloudinary cloud storage\n` +
+      `✓ Resource link from your MongoDB account\n\n` +
+      `This action CANNOT be undone!`
+    );
+    
+    if (!confirmed) {
       return;
     }
 
     try {
       setDeletingId(resourceId);
-      await deleteResource(resourceId);
+      const response = await deleteResource(resourceId);
+      
       // Remove from local state
       setResources(resources.filter(r => r.resource_id !== resourceId));
+      
+      // Show detailed success message
+      console.log('Delete response:', response);
+      
+      const cloudinaryStatus = response.cloudinary_deleted ? '✓ Removed' : '✗ Failed/Not Found';
+      const mongodbStatus = response.mongodb_deleted ? '✓ Removed' : '✗ Failed';
+      
+      alert(
+        `✅ Resource Deleted Successfully!\n\n` +
+        `Topic: ${response.topic || topic}\n` +
+        `Cloudinary Storage: ${cloudinaryStatus}\n` +
+        `MongoDB Database: ${mongodbStatus}\n\n` +
+        `The PDF and its link have been permanently removed.`
+      );
     } catch (err) {
-      alert('Failed to delete resource: ' + err.message);
       console.error('Error deleting resource:', err);
+      alert(
+        `❌ Failed to Delete Resource\n\n` +
+        `Error: ${err.message || 'Unknown error'}\n\n` +
+        `The resource may still exist in cloud storage or database.\n` +
+        `Please try again or contact support if the issue persists.`
+      );
     } finally {
       setDeletingId(null);
     }
@@ -86,10 +116,15 @@ export default function Resources() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="flex min-h-screen bg-black">
+        <Sidebar />
+        <div className="flex-1 lg:ml-64">
+          <div className="min-h-screen p-6 pt-24 lg:pt-12">
+            <div className="max-w-7xl mx-auto">
+              <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -97,44 +132,47 @@ export default function Resources() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="flex min-h-screen bg-black">
+      <Sidebar />
+      <div className="flex-1 lg:ml-64">
+        <div className="min-h-screen p-6 pt-24 lg:pt-12">
+          <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
-            <FileText className="w-10 h-10 text-blue-400" />
+            <FileText className="w-10 h-10 text-white" />
             My Study Resources
           </h1>
-          <p className="text-gray-300">
+          <p className="text-gray-400">
             Access your generated quiz notes and study materials
           </p>
         </div>
 
         {/* Error Message */}
         {error && (
-          <div className="mb-6 p-4 bg-red-500/20 border border-red-500 rounded-lg flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-red-400" />
-            <p className="text-red-200">{error}</p>
+          <div className="mb-6 p-4 bg-black border border-white/30 rounded-lg flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-white" />
+            <p className="text-white">{error}</p>
           </div>
         )}
 
         {/* Stats */}
         <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20">
+          <div className="bg-black border border-white/20 rounded-lg p-6 hover:border-white/40 transition-all duration-300">
             <div className="flex items-center gap-3">
-              <FileText className="w-8 h-8 text-blue-400" />
+              <FileText className="w-8 h-8 text-white" />
               <div>
-                <p className="text-gray-300 text-sm">Total Resources</p>
+                <p className="text-gray-400 text-sm">Total Resources</p>
                 <p className="text-2xl font-bold text-white">{resources.length}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20">
+          <div className="bg-black border border-white/20 rounded-lg p-6 hover:border-white/40 transition-all duration-300">
             <div className="flex items-center gap-3">
-              <FileDown className="w-8 h-8 text-green-400" />
+              <FileDown className="w-8 h-8 text-white" />
               <div>
-                <p className="text-gray-300 text-sm">Total Size</p>
+                <p className="text-gray-400 text-sm">Total Size</p>
                 <p className="text-2xl font-bold text-white">
                   {formatFileSize(resources.reduce((sum, r) => sum + (r.metadata?.file_size || 0), 0))}
                 </p>
@@ -142,11 +180,11 @@ export default function Resources() {
             </div>
           </div>
 
-          <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20">
+          <div className="bg-black border border-white/20 rounded-lg p-6 hover:border-white/40 transition-all duration-300">
             <div className="flex items-center gap-3">
-              <Calendar className="w-8 h-8 text-purple-400" />
+              <Calendar className="w-8 h-8 text-white" />
               <div>
-                <p className="text-gray-300 text-sm">Latest Resource</p>
+                <p className="text-gray-400 text-sm">Latest Resource</p>
                 <p className="text-lg font-bold text-white">
                   {resources.length > 0
                     ? formatDate(resources[resources.length - 1]?.created_at).split(',')[0]
@@ -160,30 +198,30 @@ export default function Resources() {
         {/* Resources Grid */}
         {resources.length === 0 ? (
           <div className="text-center py-16">
-            <FileText className="w-20 h-20 text-gray-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-semibold text-gray-300 mb-2">No Resources Yet</h2>
+            <FileText className="w-20 h-20 text-gray-600 mx-auto mb-4" />
+            <h2 className="text-2xl font-semibold text-white mb-2">No Resources Yet</h2>
             <p className="text-gray-400 mb-6">
               Complete a quiz to generate your first study notes!
             </p>
             <a
               href="/dashboard"
-              className="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+              className="inline-block px-6 py-3 bg-white text-black rounded-lg font-medium hover:bg-gray-200 transition-colors"
             >
               Go to Dashboard
             </a>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {resources.map((resource) => (
+            {resources.map((resource, index) => (
               <div
                 key={resource.resource_id}
-                className="bg-white/10 backdrop-blur-lg rounded-xl border border-white/20 overflow-hidden hover:shadow-2xl transition-all duration-300 hover:scale-105"
+                className="bg-black rounded-xl border border-white/20 overflow-hidden hover:border-white/40 transition-all duration-300"
               >
                 {/* Card Header */}
-                <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6">
+                <div className="bg-black border-b border-white/20 p-6">
                   <div className="flex items-start justify-between">
                     <FileText className="w-12 h-12 text-white" />
-                    <span className="px-3 py-1 bg-white/20 rounded-full text-xs text-white font-medium">
+                    <span className="px-3 py-1 bg-white/10 border border-white/20 rounded-full text-xs text-white font-medium">
                       PDF
                     </span>
                   </div>
@@ -196,14 +234,14 @@ export default function Resources() {
                 <div className="p-6 space-y-4">
                   {/* Metadata */}
                   <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2 text-gray-300">
-                      <Calendar className="w-4 h-4 text-gray-400" />
+                    <div className="flex items-center gap-2 text-gray-400">
+                      <Calendar className="w-4 h-4 text-gray-500" />
                       <span>{formatDate(resource.created_at)}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-gray-300">
-                      <FileDown className="w-4 h-4 text-gray-400" />
+                    <div className="flex items-center gap-2 text-gray-400">
+                      <FileDown className="w-4 h-4 text-gray-500" />
                       <span>{formatFileSize(resource.metadata?.file_size)}</span>
-                      <span className="text-gray-500">•</span>
+                      <span className="text-gray-600">•</span>
                       <span>{resource.metadata?.pages || 'N/A'} pages</span>
                     </div>
                   </div>
@@ -212,7 +250,7 @@ export default function Resources() {
                   <div className="flex gap-2 pt-4 border-t border-white/10">
                     <button
                       onClick={() => handleView(resource.resource_url)}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-white text-black rounded-lg font-medium hover:bg-gray-200 transition-colors"
                       title="View PDF"
                     >
                       <Eye className="w-4 h-4" />
@@ -221,7 +259,7 @@ export default function Resources() {
 
                     <button
                       onClick={() => handleDownload(resource.resource_url, resource.topic)}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-white text-black rounded-lg font-medium hover:bg-gray-200 transition-colors"
                       title="Download PDF"
                     >
                       <Download className="w-4 h-4" />
@@ -229,10 +267,10 @@ export default function Resources() {
                     </button>
 
                     <button
-                      onClick={() => handleDelete(resource.resource_id)}
+                      onClick={() => handleDelete(resource.resource_id, resource.topic)}
                       disabled={deletingId === resource.resource_id}
-                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Delete PDF"
+                      className="px-4 py-2 bg-white/10 border border-white/20 text-white rounded-lg font-medium hover:bg-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Delete PDF (removes from Cloudinary & MongoDB)"
                     >
                       {deletingId === resource.resource_id ? (
                         <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
@@ -246,6 +284,8 @@ export default function Resources() {
             ))}
           </div>
         )}
+          </div>
+        </div>
       </div>
     </div>
   );

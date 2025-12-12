@@ -3,8 +3,7 @@ import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import Layout from './layout/Layout';
 import LandingPage from './pages/LandingPage/LandingPage';
-import Dashboard from './pages/Dashboard/Dashboard';
-import Learn from './pages/Learn/Learn';
+import LearnChatbot from './pages/Learn/LearnChatbot';
 import TestLearn from './pages/TestLearn/TestLearn';
 import Resources from './pages/Resources/Resources';
 import { ParticlesProvider } from './contexts/ParticlesContext';
@@ -60,18 +59,10 @@ function App() {
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
               path="/learn"
               element={
                 <ProtectedRoute>
-                  <Learn />
+                  <LearnChatbot />
                 </ProtectedRoute>
               }
             />

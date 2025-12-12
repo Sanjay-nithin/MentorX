@@ -894,7 +894,7 @@ strong_topics:"""
             toon_input += f"\n    topic: {correct_ans['topic']}"
             toon_input += f"\n    question: {correct_ans['question']}"
         
-        # TOON format prompt for GROK with deep analysis capabilities
+        # TOON format prompt for     with deep analysis capabilities
         prompt = f"""Analyze quiz performance using GROK intelligence to detect ALL knowledge gaps, even unlisted subtopics.
 
 INPUT DATA (TOON format):
@@ -1070,6 +1070,16 @@ Return ONLY TOON format."""
     }
     _write_json(session_path, session)
 
+    # Determine if user is eligible for PDF notes generation
+    pdf_eligibility = {
+        'eligible': final_score_10 >= 8.0,
+        'message': (
+            '🎉 Congratulations! Your score is excellent. You can generate PDF notes for this quiz.'
+            if final_score_10 >= 8.0
+            else f'📚 Your score is {final_score_10:.1f}/10. To generate PDF notes, you need a score of at least 8.0/10. Keep practicing!'
+        )
+    }
+
     return {
         'total_questions': total,
         'correct_answers': correct,
@@ -1084,5 +1094,6 @@ Return ONLY TOON format."""
         'weak_topics': weak_topics,
         'strong_topics': strong_topics,
         'mistakes_detail': mistakes_detail,
-        'session_file_path': session_path
+        'session_file_path': session_path,
+        'pdf_eligibility': pdf_eligibility
     }
