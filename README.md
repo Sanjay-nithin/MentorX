@@ -1,12 +1,12 @@
 # MentorX - Quick Start Guide
 
-## 🚀 Project Overview
+## Project Overview
 
 MentorX is an AI-powered learning platform with hybrid authentication using Firebase (Google OAuth), MongoDB (user data), JWT tokens, and Redux state management.
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 MentorX/
@@ -49,7 +49,7 @@ MentorX/
 
 ---
 
-## ⚙️ Setup Instructions
+## Setup Instructions
 
 ### Prerequisites
 - Node.js 18+
@@ -107,7 +107,7 @@ Frontend will run at: `http://localhost:5173`
 
 ---
 
-## 🔐 Authentication System
+## Authentication System
 
 ### Architecture Overview
 
@@ -178,7 +178,7 @@ Frontend will run at: `http://localhost:5173`
 
 ---
 
-## 🎯 Key Features
+## Key Features
 
 ### 1. Dual Authentication
 - **Email/Password**: Traditional authentication with Argon2 hashing
@@ -208,8 +208,7 @@ Frontend will run at: `http://localhost:5173`
 
 ---
 
-## 🔄 Common Flows
-
+##  Common Flow
 ### Email/Password Registration
 1. User fills form → `POST /users/register`
 2. Backend hashes password → stores in MongoDB
@@ -233,7 +232,7 @@ Frontend will run at: `http://localhost:5173`
 
 ---
 
-## 📊 State Structure
+##  State Structure
 
 ### Redux Auth State
 ```javascript
@@ -261,7 +260,7 @@ Frontend will run at: `http://localhost:5173`
 
 ---
 
-## 🛠️ API Endpoints
+## API Endpoints
 
 ### Authentication
 - `POST /users/register` - Create new account
@@ -308,117 +307,8 @@ Example response:
 }
 ```
 
----
 
-## 🔍 Debugging Tips
 
-### Check Authentication State
-```javascript
-// In browser console
-localStorage.getItem('mx_access_token');  // Should return token
-localStorage.getItem('mx_user');          // Should return user JSON
-```
-
-### Redux DevTools
-- Install Redux DevTools extension
-- View auth state: `state.auth`
-- Track actions: `loginSuccess`, `logout`, `setTokens`
-
-### Backend Logs
-- Look for `[Firebase]` logs in console
-- Check JWT verification errors
-- Monitor MongoDB connection status
-
-### Common Issues
-
-**"Invalid credentials" on login:**
-- Verify email is lowercase in database
-- Check password hash matches
-- Confirm user exists in MongoDB
-
-**401 Unauthorized errors:**
-- Check if access token expired
-- Verify Authorization header format: `Bearer <token>`
-- Confirm JWT_SECRET matches between requests
-
-**Firebase popup blocked:**
-- Allow popups for the site
-- Check Firebase config in `.env`
-- Verify Firebase project has Google OAuth enabled
-
-**Session not persisting:**
-- Check localStorage is enabled
-- Verify tokens are stored correctly
-- Confirm App.jsx initialization logic runs
-
----
-
-## 📦 Dependencies
-
-### Backend
-```txt
-fastapi>=0.104.0          # Web framework
-uvicorn>=0.24.0           # ASGI server
-motor>=3.3.0              # Async MongoDB driver
-pydantic[email]>=2.4.0    # Data validation
-passlib[argon2]>=1.7.4    # Password hashing
-pyjwt>=2.8.0              # JWT tokens
-python-dotenv>=1.0.0      # Environment variables
-```
-
-### Frontend
-```json
-{
-  "react": "^18.3.1",
-  "react-dom": "^18.3.1",
-  "react-router-dom": "^6.27.0",
-  "react-redux": "^9.1.2",
-  "@reduxjs/toolkit": "^2.2.7",
-  "firebase": "^10.13.2",
-  "lucide-react": "^0.454.0"
-}
-```
-
----
-
-## 🎓 Learning Resources
-
-For detailed architecture explanations, see:
-- **[AUTHENTICATION_ARCHITECTURE.md](./AUTHENTICATION_ARCHITECTURE.md)** - Complete technical documentation
-
-Quick references:
-- Redux: `frontend/src/store/authSlice.js`
-- Firebase: `frontend/src/firebase.js`
-- JWT Utils: `backend/utils/auth.py`
-- API Service: `frontend/src/services/service.js`
-- User Model: `backend/models/userModel.py`
-
----
-
-## 🚦 Testing Checklist
-
-- [ ] Register new user with email/password
-- [ ] Login with correct credentials
-- [ ] Login fails with wrong password
-- [ ] Google OAuth sign-in works
-- [ ] Dashboard redirects if not logged in
-- [ ] Session persists after page refresh
-- [ ] Logout clears all tokens
-- [ ] Token auto-refreshes on 401
-- [ ] Protected API endpoints require auth
-- [ ] Invalid tokens redirect to login
-
----
-
-## 📞 Support
-
-For issues or questions:
-1. Check `AUTHENTICATION_ARCHITECTURE.md` for detailed explanations
-2. Review browser console for errors
-3. Check backend logs for API issues
-4. Verify environment variables are set correctly
-
----
 
 **Quick Start Version:** 1.0  
 **Last Updated:** December 6, 2025

@@ -314,21 +314,21 @@ export default function FeaturesGrid() {
         })}
       </Swiper>
 
-      <style jsx>{`
-        :global(.features-swiper) {
+      <style>{`
+        .features-swiper {
           padding-bottom: 100px !important;
           overflow: visible !important;
         }
 
-        :global(.swiper-wrapper) {
+        .swiper-wrapper {
           align-items: stretch;
         }
 
-        :global(.swiper-slide) {
+        .swiper-slide {
           height: auto;
         }
 
-        :global(.swiper-pagination) {
+        .swiper-pagination {
           bottom: -60px !important;
           display: flex !important;
           justify-content: center !important;
@@ -336,7 +336,7 @@ export default function FeaturesGrid() {
           position: absolute !important;
         }
 
-        :global(.swiper-pagination-bullet) {
+        .swiper-pagination-bullet {
           width: 12px !important;
           height: 12px !important;
           background: #808080 !important;
@@ -345,14 +345,14 @@ export default function FeaturesGrid() {
           border-radius: 50% !important;
           transition: all 0.3s ease !important;
           cursor: pointer !important;
-        }
+          }
 
-        :global(.swiper-pagination-bullet:hover) {
+        .swiper-pagination-bullet:hover {
           background: #b0b0b0 !important;
           transform: scale(1.2);
         }
 
-        :global(.swiper-pagination-bullet-active) {
+        .swiper-pagination-bullet-active {
           background: #ffffff !important;
           width: 32px !important;
           border-radius: 6px !important;
