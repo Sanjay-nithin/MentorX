@@ -4,7 +4,7 @@ import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { loginSuccess } from '../../../store/authSlice';
 import { signInWithGoogle } from '../../../firebase';
-import { loginUser, registerUser, setTokens } from '../../../services/service';
+import { loginUser, registerUser, setTokens, verifyGoogle } from '../../../services/service';
 
 export default function SignInModal({ open, onClose, defaultMode = 'signin' }) {
   const dispatch = useDispatch();
@@ -20,25 +20,34 @@ export default function SignInModal({ open, onClose, defaultMode = 'signin' }) {
     setError('');
     setLoadingGoogle(true);
     try {
+      // Step 1: Sign in with Firebase Google
       const result = await signInWithGoogle();
       const user = result.user;
-      const accessToken = await user.getIdToken();
+      
+      // Step 2: Verify with backend and get JWT tokens
+      const backendResponse = await verifyGoogle({
+        uid: user.uid,
+        email: user.email,
+        photo_url: user.photoURL,
+        display_name: user.displayName,
+      });
+      
+      // Step 3: Store JWT tokens in localStorage
+      setTokens(backendResponse.access_token, backendResponse.refresh_token);
+      
+      // Step 4: Dispatch login success with user data and tokens
       dispatch(
         loginSuccess({
-          user: {
-            uid: user.uid,
-            email: user.email,
-            displayName: user.displayName,
-            photoURL: user.photoURL,
-            provider: 'google',
-          },
-          accessToken,
-          refreshToken: user.refreshToken,
+          user: backendResponse.user,
+          accessToken: backendResponse.access_token,
+          refreshToken: backendResponse.refresh_token,
         })
       );
+      
       onClose?.();
-      navigate('/dashboard');
+      navigate('/learn');
     } catch (e) {
+      console.error('Google sign-in error:', e);
       setError(e?.message || 'Google sign-in failed. Please try again.');
     } finally {
       setLoadingGoogle(false);
@@ -96,7 +105,7 @@ export default function SignInModal({ open, onClose, defaultMode = 'signin' }) {
                   );
                 }
                 onClose?.();
-                navigate('/dashboard');
+                navigate('/learn');
               } catch (err) {
                 setError(err?.message || 'Authentication failed. Please try again.');
               } finally {

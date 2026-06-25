@@ -17,7 +17,10 @@ export default function Resources() {
     try {
       setLoading(true);
       setError('');
+      console.log('Fetching resources...');
       const data = await getMyResources();
+      console.log('Resources response:', data);
+      console.log('Resources array:', data.resources);
       setResources(data.resources || []);
     } catch (err) {
       setError(err.message || 'Failed to load resources');
@@ -203,18 +206,25 @@ export default function Resources() {
             <p className="text-gray-400 mb-6">
               Complete a quiz to generate your first study notes!
             </p>
+            <p className="text-xs text-gray-500 mb-4">
+              Debug: Loaded {resources.length} resources from API
+            </p>
             <a
-              href="/dashboard"
+              href="/learn"
               className="inline-block px-6 py-3 bg-white text-black rounded-lg font-medium hover:bg-gray-200 transition-colors"
             >
-              Go to Dashboard
+              Start Learning
             </a>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div>
+            <p className="text-sm text-gray-400 mb-4">
+              Showing {resources.length} resource(s)
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {resources.map((resource, index) => (
               <div
-                key={resource.resource_id}
+                key={resource.resource_id || index}
                 className="bg-black rounded-xl border border-white/20 overflow-hidden hover:border-white/40 transition-all duration-300"
               >
                 {/* Card Header */}
@@ -282,6 +292,7 @@ export default function Resources() {
                 </div>
               </div>
             ))}
+            </div>
           </div>
         )}
           </div>

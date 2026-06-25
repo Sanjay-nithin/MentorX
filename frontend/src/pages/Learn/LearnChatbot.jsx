@@ -15,13 +15,39 @@ import {
   User,
   FileText
 } from 'lucide-react';
-import { generateKG, evaluateExplanation, startQuiz, answerQuestion, finishQuiz, generatePDFNotes } from '../../services/service';
+import { generateKG, evaluateExplanation, startQuiz, nextQuestion, answerQuestion, finishQuiz, generatePDFNotes } from '../../services/service';
 
 function LearnChatbot() {
   // Chatbot states
-  const [messages, setMessages] = useState([
+  const VITE_API_BASE = import.meta.env.VITE_API_BASE;
+  const messageIdCounter = useRef(0); // Counter for unique message IDs
+  
+  // Load initial state from localStorage
+  const loadStateFromLocalStorage = () => {
+    try {
+      const savedState = localStorage.getItem('learnChatbotState');
+      if (savedState) {
+        const parsed = JSON.parse(savedState);
+        // Convert timestamp strings back to Date objects
+        if (parsed.messages) {
+          parsed.messages = parsed.messages.map(msg => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp)
+          }));
+        }
+        return parsed;
+      }
+    } catch (error) {
+      console.error('Error loading state from localStorage:', error);
+    }
+    return null;
+  };
+
+  const savedState = loadStateFromLocalStorage();
+  
+  const [messages, setMessages] = useState(savedState?.messages || [
     {
-      id: 1,
+      id: 'msg-initial',
       type: 'bot',
       content: 'Hi! I\'m your AI Learning Assistant. What topic would you like to learn today?',
       timestamp: new Date(),
@@ -30,24 +56,24 @@ function LearnChatbot() {
     }
   ]);
   const [inputValue, setInputValue] = useState('');
-  const [conversationStage, setConversationStage] = useState('awaiting_topic');
-  const [topic, setTopic] = useState('');
+  const [conversationStage, setConversationStage] = useState(savedState?.conversationStage || 'awaiting_topic');
+  const [topic, setTopic] = useState(savedState?.topic || '');
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const [typingMessageId, setTypingMessageId] = useState(null);
   
   // Quiz states
   const [loading, setLoading] = useState(false);
-  const [showQuiz, setShowQuiz] = useState(false);
-  const [showResults, setShowResults] = useState(false);
-  const [quizData, setQuizData] = useState(null);
-  const [quizResults, setQuizResults] = useState(null);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [userAnswers, setUserAnswers] = useState({});
-  const [questionResults, setQuestionResults] = useState({});
+  const [showQuiz, setShowQuiz] = useState(savedState?.showQuiz || false);
+  const [showResults, setShowResults] = useState(savedState?.showResults || false);
+  const [quizData, setQuizData] = useState(savedState?.quizData || null);
+  const [quizResults, setQuizResults] = useState(savedState?.quizResults || null);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(savedState?.currentQuestionIndex || 0);
+  const [userAnswers, setUserAnswers] = useState(savedState?.userAnswers || {});
+  const [questionResults, setQuestionResults] = useState(savedState?.questionResults || {});
   const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [generatingPDF, setGeneratingPDF] = useState(false);
-  const [pdfGenerated, setPdfGenerated] = useState(false);
+  const [pdfGenerated, setPdfGenerated] = useState(savedState?.pdfGenerated || false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -56,6 +82,29 @@ function LearnChatbot() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Save state to localStorage whenever critical state changes
+  useEffect(() => {
+    const stateToSave = {
+      messages,
+      conversationStage,
+      topic,
+      showQuiz,
+      showResults,
+      quizData,
+      quizResults,
+      currentQuestionIndex,
+      userAnswers,
+      questionResults,
+      pdfGenerated
+    };
+    
+    try {
+      localStorage.setItem('learnChatbotState', JSON.stringify(stateToSave));
+    } catch (error) {
+      console.error('Error saving state to localStorage:', error);
+    }
+  }, [messages, conversationStage, topic, showQuiz, showResults, quizData, quizResults, currentQuestionIndex, userAnswers, questionResults, pdfGenerated]);
 
   // Auto-resize textarea
   const adjustTextareaHeight = () => {
@@ -71,8 +120,9 @@ function LearnChatbot() {
   }, [inputValue]);
 
   const addMessage = (type, content, shouldAnimate = false) => {
+    messageIdCounter.current += 1; // Increment counter for unique ID
     const newMessage = {
-      id: Date.now(),
+      id: `msg-${messageIdCounter.current}-${Date.now()}`, // Unique ID combining counter and timestamp
       type,
       content,
       timestamp: new Date(),
@@ -176,13 +226,7 @@ function LearnChatbot() {
           
           while (true) {
             try {
-              const nextQuestion = await fetch(`http://localhost:8000/api/quiz/next`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ session_file_path: quizResponse.session_file_path })
-              });
-              
-              const nextData = await nextQuestion.json();
+              const nextData = await nextQuestion(quizResponse.session_file_path);
               
               if (nextData.done) {
                 break;
@@ -255,6 +299,15 @@ function LearnChatbot() {
       const correctAnswerText = currentQuestion.options[result.correct_answer];
       const userAnswerText = currentQuestion.options[selectedAnswer];
 
+      console.log('Answer Result:', {
+        correct: result.correct,
+        reason: result.reason,
+        correct_answer_index: result.correct_answer,
+        user_answer_index: selectedAnswer,
+        correct_answer_text: correctAnswerText,
+        user_answer_text: userAnswerText
+      });
+
       setUserAnswers(prev => ({
         ...prev,
         [currentQuestionIndex]: selectedAnswer
@@ -316,9 +369,15 @@ function LearnChatbot() {
   };
 
   const handleBackToLearn = () => {
+    // Clear localStorage state
+    localStorage.removeItem('learnChatbotState');
+    
+    // Reset message ID counter
+    messageIdCounter.current = 0;
+    
     setMessages([
       {
-        id: Date.now(),
+        id: 'msg-initial',
         type: 'bot',
         content: 'Hi! I\'m your AI Learning Assistant. What topic would you like to learn today?',
         timestamp: new Date(),
@@ -821,12 +880,14 @@ function LearnChatbot() {
                     )}
                     <div className={`flex-1 ${message.type === 'user' ? 'text-right' : 'text-left'}`}>
                       <p className={`text-lg whitespace-pre-wrap leading-relaxed ${
-                        message.type === 'user' ? 'text-white' : 'text-gray-200'
+                        message.type === 'user' 
+                          ? 'text-white inline-block bg-gray-800 px-5 py-3 rounded-2xl border border-gray-700' 
+                          : 'text-gray-200'
                       }`}>
                         {message.displayedContent || message.content}
                         {message.isTyping && <span className="inline-block w-1 h-5 bg-gray-400 ml-1 animate-pulse"></span>}
                       </p>
-                      <span className={`text-xs text-gray-500 mt-2 inline-block ${
+                      <span className={`text-xs text-gray-500 mt-2 inline-block block ${
                         message.type === 'user' ? 'text-right' : 'text-left'
                       }`}>
                         {message.timestamp.toLocaleTimeString()}

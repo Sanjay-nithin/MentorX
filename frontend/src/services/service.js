@@ -225,16 +225,7 @@ export async function finishQuiz(sessionFilePath) {
     body: JSON.stringify({ session_file_path: sessionFilePath }),
   });
   
-  // DEBUG: Automatically generate PDF notes after quiz completion (score check disabled)
-  // Always attempt PDF generation for debugging purposes
-  try {
-    await generatePDFNotes(sessionFilePath, data);
-    console.log('PDF notes generated successfully');
-  } catch (error) {
-    console.warn('Failed to generate PDF notes:', error);
-    // Don't fail the quiz finish if PDF generation fails
-  }
-  
+  // User will generate PDF manually if score >= 8.0
   return data;
 }
 

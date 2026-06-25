@@ -18,6 +18,7 @@ import {
 import { generateKG, evaluateExplanation, startQuiz, answerQuestion, finishQuiz } from '../../services/service';
 
 function Learn() {
+  const VITE_API_BASE = import.meta.env.VITE_API_BASE;
   const [topic, setTopic] = useState('');
   const [explanation, setExplanation] = useState('');
   const [loading, setLoading] = useState(false);
@@ -78,7 +79,7 @@ function Learn() {
           
           while (true) {
             try {
-              const nextQuestion = await fetch(`http://localhost:8000/api/quiz/next`, {
+              const nextQuestion = await fetch(`${VITE_API_BASE}/api/quiz/next`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ session_file_path: quizResponse.session_file_path })

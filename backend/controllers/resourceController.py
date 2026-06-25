@@ -548,13 +548,12 @@ async def generate_quiz_notes(
     topic = quiz_data.get('topic', 'Quiz Results')
     final_score_10 = results_data.get('final_score_10', 0)
     
-    # DEBUG: Score requirement temporarily disabled for debugging
     # Check if score meets minimum requirement (>= 8.0)
-    # if final_score_10 < 8.0:
-    #     raise HTTPException(
-    #         status_code=400,
-    #         detail=f"Score requirement not met. Your score is {final_score_10:.1f}/10. To generate PDF notes, you need a minimum score of 8.0/10."
-    #     )
+    if final_score_10 < 8.0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Score requirement not met. Your score is {final_score_10:.1f}/10. To generate PDF notes, you need a minimum score of 8.0/10."
+        )
     
     # Check if user already has a resource for this topic
     try:
@@ -661,6 +660,7 @@ async def get_user_resources(
             detail="Invalid token payload"
         )
     
+    
     # Get user's resources
     try:
         users_collection = db["users"]
@@ -671,9 +671,23 @@ async def get_user_resources(
         
         resources = user.get('resources', [])
         
+        # Convert datetime objects to ISO format strings for JSON serialization
+        formatted_resources = []
+        for resource in resources:
+            formatted_resource = {
+                "resource_id": resource.get("resource_id"),
+                "topic": resource.get("topic"),
+                "resource_url": resource.get("resource_url"),
+                "resource_type": resource.get("resource_type"),
+                "created_at": resource.get("created_at").isoformat() if isinstance(resource.get("created_at"), datetime) else resource.get("created_at"),
+                "metadata": resource.get("metadata", {})
+            }
+            formatted_resources.append(formatted_resource)
+        
+        
         return {
-            "resources": resources,
-            "total": len(resources)
+            "resources": formatted_resources,
+            "total": len(formatted_resources)
         }
     except Exception as e:
         raise HTTPException(

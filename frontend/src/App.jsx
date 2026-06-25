@@ -6,6 +6,7 @@ import LandingPage from './pages/LandingPage/LandingPage';
 import LearnChatbot from './pages/Learn/LearnChatbot';
 import TestLearn from './pages/TestLearn/TestLearn';
 import Resources from './pages/Resources/Resources';
+import Profile from './pages/Profile/Profile';
 import { ParticlesProvider } from './contexts/ParticlesContext';
 import { loginSuccess, logout } from './store/authSlice';
 import { getAccessToken, getRefreshToken, getCurrentUser, clearTokens } from './services/service';
@@ -79,6 +80,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Resources />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
                 </ProtectedRoute>
               }
             />
