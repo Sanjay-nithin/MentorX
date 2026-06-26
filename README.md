@@ -1,5 +1,7 @@
 # MentorX - Quick Start Guide
 
+## Live Link - [MentorX](http://mentor-x-nine.vercel.app)
+
 ## Project Overview
 
 MentorX is an AI-powered learning platform with hybrid authentication using Firebase (Google OAuth), MongoDB (user data), JWT tokens, and Redux state management.
